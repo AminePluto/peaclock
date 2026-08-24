@@ -24,6 +24,37 @@ public:
   {
     return _is_running;
   }
+  Timer& add(std::string const& str)
+  {
+    if (_is_running)
+    {
+      update();
+    }
+
+    _total += std::chrono::seconds(str_to_sec(str));
+
+    return *this;
+  }
+  Timer& minus(std::string const& str)
+  {
+    if (_is_running)
+    {
+      update();
+    }
+
+    auto const duration = std::chrono::seconds(str_to_sec(str));
+
+    if (_total.time_since_epoch() >= duration)
+    {
+      _total -= duration;
+    }
+    else
+    {
+      _total = {};
+    }
+
+    return *this;
+  }
 
   Timer& start()
   {

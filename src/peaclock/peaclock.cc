@@ -684,3 +684,22 @@ void Peaclock::set_clock_binary()
     fill_binary(row_len + 1, col, _ctx.value.at(col));
   }
 }
+
+void Peaclock::timer_add(std::string const& str)
+{
+  cfg.timer_seconds += OB::Timer::str_to_sec(str);
+}
+
+void Peaclock::timer_minus(std::string const& str)
+{
+  auto const seconds = OB::Timer::str_to_sec(str);
+
+  if (seconds >= cfg.timer_seconds)
+  {
+    cfg.timer_seconds = 1;
+  }
+  else
+  {
+    cfg.timer_seconds -= seconds;
+  }
+}

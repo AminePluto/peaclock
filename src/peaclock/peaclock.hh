@@ -413,6 +413,10 @@ public:
   OB::Timer timer;
   OB::Timer stopwatch;
 
+
+  void timer_add(std::string const& str);
+  void timer_minus(std::string const& str);
+
 private:
 
   struct Position

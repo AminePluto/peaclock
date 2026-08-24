@@ -47,6 +47,8 @@ private:
 
   std::optional<std::pair<bool, std::string>> command(std::string const& input);
   void command_prompt();
+  void stopwatch_adjust(bool add);
+  void timer_adjust(bool add);
 
   void event_loop();
   int screen_size();

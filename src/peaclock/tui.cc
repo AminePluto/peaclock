@@ -859,6 +859,34 @@ void Tui::get_input()
         break;
       }
 
+      case '+':
+      {
+        if (_peaclock.cfg.mode == Peaclock::Mode::stopwatch)
+        {
+          stopwatch_adjust(true);
+        }
+        else if (_peaclock.cfg.mode == Peaclock::Mode::timer)
+        {
+          timer_adjust(true);
+        }
+
+        break;
+      }
+
+      case '-':
+      {
+        if (_peaclock.cfg.mode == Peaclock::Mode::stopwatch)
+        {
+          stopwatch_adjust(false);
+        }
+        else if (_peaclock.cfg.mode == Peaclock::Mode::timer)
+        {
+          timer_adjust(false);
+        }
+
+        break;
+      }
+
       case 'l':
       {
         switch (_peaclock.cfg.toggle)
@@ -1514,7 +1542,11 @@ std::optional<std::pair<bool, std::string>> Tui::command(std::string const& inpu
   }
 
   else if (keys.at(0) == "timer" && (match_opt = OB::String::match(input,
-    std::regex("^timer(?:\\s+(clear|start|stop|(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)))?$"))))
+  std::regex("^timer(?:\\s+(clear|start|stop|"
+  "(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)"
+  "|(?:add|minus)\\s+"
+  "(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)"
+  "))?$"))))
   {
     auto const match = OB::String::trim(match_opt.value().at(1));
 
@@ -1543,6 +1575,14 @@ std::optional<std::pair<bool, std::string>> Tui::command(std::string const& inpu
     {
       _peaclock.timer.stop();
     }
+    else if (match.rfind("add ", 0) == 0)
+    {
+      _peaclock.timer_add(match.substr(4));
+    }
+    else if (match.rfind("minus ", 0) == 0)
+    {
+      _peaclock.timer_minus(match.substr(6));
+    }
     else
     {
       _peaclock.timer.reset();
@@ -1552,7 +1592,13 @@ std::optional<std::pair<bool, std::string>> Tui::command(std::string const& inpu
   }
 
   else if (keys.at(0) == "stopwatch" && (match_opt = OB::String::match(input,
-    std::regex("^stopwatch(?:\\s+(clear|start|stop|(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)))?$"))))
+  std::regex(
+"^stopwatch(?:\\s+(clear|start|stop|"
+"(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)"
+"|(?:add|minus)\\s+"
+"(?:(?:\\d+Y)?:?(?:\\d+M)?:?(?:\\d+W)?:?(?:\\d+D)?:?(?:\\d+h)?:?(?:\\d+m)?:?(?:\\d+s)?)"
+"))?$"
+))))
   {
     auto const match = OB::String::trim(match_opt.value().at(1));
 
@@ -1572,6 +1618,14 @@ std::optional<std::pair<bool, std::string>> Tui::command(std::string const& inpu
     else if (match == "stop")
     {
       _peaclock.stopwatch.stop();
+    }
+    else if (match.rfind("add ", 0) == 0)
+    {
+      _peaclock.stopwatch.add(match.substr(4));
+    }
+    else if (match.rfind("minus ", 0) == 0)
+    {
+      _peaclock.stopwatch.minus(match.substr(6));
     }
     else
     {
@@ -2418,6 +2472,98 @@ void Tui::command_prompt()
   if (auto const res = command(input))
   {
     set_status(res.value().first, res.value().second);
+  }
+}
+
+void Tui::stopwatch_adjust(bool add)
+{
+  _ctx.prompt.count = 0;
+
+  _readline.style(_ctx.style.text.value() + _ctx.style.background.value());
+  _readline.prompt(
+    add ? "+" : "-",
+    _ctx.style.prompt.value() + _ctx.style.background.value()
+  );
+
+  std::cout
+  << aec::cursor_save
+  << aec::cursor_set(0, _ctx.height)
+  << aec::erase_line
+  << aec::cursor_show
+  << std::flush;
+
+  auto input = _readline(_ctx.is_running);
+
+  std::cout
+  << aec::cursor_hide
+  << aec::cursor_load
+  << std::flush;
+
+  if (input.empty())
+  {
+    return;
+  }
+
+  if (add)
+  {
+    _peaclock.stopwatch.add(input);
+    set_status(true, "stopwatch +" + input);
+  }
+  else
+  {
+    _peaclock.stopwatch.minus(input);
+    set_status(true, "stopwatch -" + input);
+  }
+}
+
+void Tui::timer_adjust(bool add)
+{
+  _ctx.prompt.count = 0;
+
+  _readline.style(_ctx.style.text.value() + _ctx.style.background.value());
+  _readline.prompt(
+    add ? "+" : "-",
+    _ctx.style.prompt.value() + _ctx.style.background.value()
+  );
+
+  std::cout
+  << aec::cursor_save
+  << aec::cursor_set(0, _ctx.height)
+  << aec::erase_line
+  << aec::cursor_show
+  << std::flush;
+
+  auto input = _readline(_ctx.is_running);
+
+  std::cout
+  << aec::cursor_hide
+  << aec::cursor_load
+  << std::flush;
+
+  if (input.empty())
+  {
+    return;
+  }
+
+  auto const seconds = OB::Timer::str_to_sec(input);
+
+  if (add)
+  {
+    _peaclock.cfg.timer_seconds += seconds;
+    set_status(true, "timer +" + input);
+  }
+  else
+  {
+    if (seconds >= _peaclock.cfg.timer_seconds)
+    {
+      _peaclock.cfg.timer_seconds = 1;
+    }
+    else
+    {
+      _peaclock.cfg.timer_seconds -= seconds;
+    }
+
+    set_status(true, "timer -" + input);
   }
 }
 
